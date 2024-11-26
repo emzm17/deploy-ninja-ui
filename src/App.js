@@ -49,7 +49,7 @@ const App = () => {
   return (
     <div className="container">
       <h1>
-        Paste <i className="fab fa-github"></i>Deploy your application with one click
+        <i className="fab fa-github"></i>Deploy your application with one click
       </h1>
       <div className="input-container">
         <input

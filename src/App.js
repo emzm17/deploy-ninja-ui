@@ -4,11 +4,13 @@ import "./App.css";
 
 const App = () => {
   const [githubLink, setGithubLink] = useState("");
+  const [customCommand, setCustomCommand] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [isDeployButtonDisabled, setDeployButtonDisabled] = useState(false); // State to control button disabling
-  const [activeUrl, setActiveUrl] = useState(""); // State to store the active URL
+  const [isDeployButtonDisabled, setDeployButtonDisabled] = useState(false);
+  const [activeUrl, setActiveUrl] = useState("");
+  const [customCommandOutput, setCustomCommandOutput] = useState("");
 
   const isValidGithubURL = (url) => {
     const githubRepoRegex = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -23,29 +25,31 @@ const App = () => {
       return;
     }
 
+    // Reset URL and error message before starting the deployment
+    setActiveUrl("");
     setErrorMessage("");
+    setNotifications([]); // Clear previous notifications
     setLoading(true);
-    setDeployButtonDisabled(true); // Disable the deploy button
+    setDeployButtonDisabled(true);
 
     try {
       const apiUrl = `${process.env.REACT_APP_API_URL}/deploy`;
-
-      // Send GitHub URL in the JSON body of the POST request
       const response = await axios.post(apiUrl, {
         githubUrl: githubLink,
+        command: customCommand || "npm run build" // Default to 'npm run build' if no custom command is provided
       });
 
       if (response.status === 200) {
-        const { subdomain, id } = response.data; // Extract id and subdomain from the response
-        startPolling(id, subdomain); // Start polling with the id and subdomain
+        const { subdomain, id } = response.data;
+        startPolling(id, subdomain);
       } else {
         setErrorMessage(`Deployment failed: ${response.statusText}`);
-        setDeployButtonDisabled(false); // Re-enable button if there's an error
+        setDeployButtonDisabled(false);
       }
     } catch (error) {
       setErrorMessage("Error during deployment. Please try again later.");
       console.error(error);
-      setDeployButtonDisabled(false); // Re-enable button if there's an error
+      setDeployButtonDisabled(false);
     } finally {
       setLoading(false);
     }
@@ -55,32 +59,32 @@ const App = () => {
     const interval = setInterval(async () => {
       try {
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/status`, {
-          params: {
-            id: id, // Use 'uuid' to match the server-side parameter
-            subdomain,          // Ensure the parameter names match the server-side code
-          },
+          params: { id, subdomain },
         });
 
         const updatedNotification = {
           ...response.data,
-          blink: response.data.status !== "ACTIVE", // Add blink property based on status
+          blink: response.data.status !== "ACTIVE",
         };
 
-        // Update notifications with the latest response data
         setNotifications([updatedNotification]);
 
-        // Check if the status is "ACTIVE" to stop polling and show the active URL
         if (response.data.status === "ACTIVE") {
           clearInterval(interval);
-          setDeployButtonDisabled(false); // Re-enable the deploy button
-          setActiveUrl(`http://${subdomain}.deploy-ninja.me/`); // Set the active URL
+          setDeployButtonDisabled(false);
+          setActiveUrl(`http://${subdomain}.deploy-ninja.me/`);
+        } else if (response.data.status === "FAILED") {
+          clearInterval(interval);
+          setDeployButtonDisabled(false);
+          setNotifications([]); // Clear notifications on failed status
+          setActiveUrl(""); // Clear the active URL on failed status
+          setErrorMessage(`Deployment failed for subdomain ${subdomain}`);
         }
       } catch (error) {
         console.error("Error fetching status", error);
       }
-    }, 10000); // Poll every 10 seconds
+    }, 10000);
 
-    // Return the cleanup function to clear interval on component unmount
     return () => clearInterval(interval);
   };
 
@@ -95,6 +99,12 @@ const App = () => {
           placeholder="Paste GitHub link..."
           value={githubLink}
           onChange={(e) => setGithubLink(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Enter custom command (optional)..."
+          value={customCommand}
+          onChange={(e) => setCustomCommand(e.target.value)}
         />
         <button onClick={handleDeploy} disabled={isDeployButtonDisabled}>
           {isDeployButtonDisabled ? "Deploying..." : "Deploy"}
@@ -118,6 +128,7 @@ const App = () => {
           )}
         </div>
       </div>
+      {customCommandOutput && <div className="command-output">{customCommandOutput}</div>}
     </div>
   );
 };

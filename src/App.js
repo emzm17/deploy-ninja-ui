@@ -32,6 +32,9 @@ const App = () => {
     setLoading(true);
     setDeployButtonDisabled(true);
 
+    // Log the custom command being used for deployment
+    console.log("Custom Command:", customCommand || "npm run build");
+
     try {
       const apiUrl = `${process.env.REACT_APP_API_URL}/deploy`;
       const response = await axios.post(apiUrl, {

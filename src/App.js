@@ -33,7 +33,7 @@ const App = () => {
     setDeployButtonDisabled(true);
 
     // Log the custom command being used for deployment
-    console.log("Custom Command:", customCommand || "npm run build");
+   // console.log("Custom Command:", customCommand || "npm run build");
 
     try {
       const apiUrl = `${process.env.REACT_APP_API_URL}/deploy`;
